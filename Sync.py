@@ -2,7 +2,8 @@
 import dirsync
 import os
 import datetime
-import numpy 
+import numpy as np
+import pandas as pd
 
 def get_size(start_path = '.'):
     total_size = 0
@@ -12,27 +13,56 @@ def get_size(start_path = '.'):
             total_size += os.path.getsize(fp)
     return total_size
 
-f1 = 'C:\\Users\\aspitarl\\Documents\\synctest\\Folder 1\\'
-f2 = 'C:\\Users\\aspitarl\\Documents\\synctest\\Folder 2\\'
+maxsize = 180 #mb
+print('syncing all recent directories up to size ' + str(maxsize) + 'Mb')
+maxsize = maxsize*1e6
+
+
+
+f1 = 'C:\\Users\\aspit\\Documents\\synctest\\Folder 1\\'
+f2 = 'C:\\Users\\aspit\\Documents\\synctest\\Folder 2\\'
 
 folders = [ name for name in os.listdir(f1) if os.path.isdir(os.path.join(f1, name)) ]
-
-dates  = []
+dates = []
 sizes = []
-for folder in folders:
-    dates.append( datetime.datetime.strptime(folder,'%Y-%m-%d'))
-    size = get_size( os.path.join(f1,folder))
+for i, folder in enumerate(folders):
+    try:
+        dates.append( datetime.datetime.strptime(folder,'%Y-%m-%d'))
+    except ValueError:
+        print('folder: \" ' + folder + ' \"  does not match data format')
+        del folders[i]
+    else:
+        sizes.append(get_size( os.path.join(f1,folder)))
 
-# cumsize = numpy.trapz(sizes)
+sizes = pd.Series(sizes, index = dates)
+folders = pd.Series(folders, index = dates)
 
-# print(cumsize)
+sizes = sizes.sort_index(ascending=False)
+folders = folders.sort_index(ascending=False)
 
-
-# folders = ['A','B']
-
-# for folder in folders:
-#     src = os.path.join(f1,folder)
-#     dst = os.path.join(f2,folder)
-#     dirsync.sync(src,dst,'sync', create = True)
+cumsize = np.cumsum(sizes)
 
 
+#should replace at some point with a for loop over the recieving folder so that folders not in raw data anymore for some reason can be removed 
+synced = []
+unsynced = []
+for date in cumsize.index:
+    if cumsize[date] < maxsize:
+        src = os.path.join(f1,folders[date]) 
+        dst = os.path.join(f2,folders[date])
+        print('syncing ' + folders[date])
+        dirsync.sync(src,dst,'sync', create = True)
+        synced.append(folders[date])
+    else:
+        unsynced.append(folders[date])
+
+print('synced directories ' + str(synced))
+print('unsynced directories ' + str(unsynced))
+    
+import shutil
+
+for folder in unsynced:
+    path = os.path.join(f2,folder)
+    if os.path.exists(path):
+        print('removing: ' + path)
+        shutil.rmtree(path)

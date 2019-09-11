@@ -1,0 +1,35 @@
+# Your code here
+>>> import numpy as np
+>>> import xarray as xr
+>>> import pandas as pd
+
+>>> data = np.random.random(300)
+
+# Make a time grid that doesn't start exactly on the hour.
+>>> time = pd.date_range('2019-01-01', periods=300, freq='T') + pd.Timedelta('3T')
+>>> time
+DatetimeIndex(['2019-01-01 00:03:00', '2019-01-01 00:04:00',
+               '2019-01-01 00:05:00', '2019-01-01 00:06:00',
+               '2019-01-01 00:07:00', '2019-01-01 00:08:00',
+               '2019-01-01 00:09:00', '2019-01-01 00:10:00',
+               '2019-01-01 00:11:00', '2019-01-01 00:12:00',
+               ...
+               '2019-01-01 04:53:00', '2019-01-01 04:54:00',
+               '2019-01-01 04:55:00', '2019-01-01 04:56:00',
+               '2019-01-01 04:57:00', '2019-01-01 04:58:00',
+               '2019-01-01 04:59:00', '2019-01-01 05:00:00',
+               '2019-01-01 05:01:00', '2019-01-01 05:02:00'],
+              dtype='datetime64[ns]', length=300, freq='T')
+
+>>> da = xr.DataArray(data, dims=['time'], coords={'time': time})
+>>> resampled = da.resample(time='H').asfreq()
+>>> resampled
+<xarray.DataArray (time: 6)>
+array([0.478601, 0.488425, 0.496322, 0.479256, 0.523395, 0.201718])
+Coordinates:
+  * time     (time) datetime64[ns] 2019-01-01 ... 2019-01-01T05:00:00
+
+# The value is actually the mean over the time window, eg. the third value is:
+>>> da.loc['2019-01-01T02:00:00':'2019-01-01T02:59:00'].mean()
+<xarray.DataArray ()>
+array(0.496322)
